@@ -118,6 +118,8 @@ Run the script:
 python test.py
 ```
 
+## Live url: https://loan-payback-prediction.vercel.app/
+
 Output:
 
 submission.csv will be generated
