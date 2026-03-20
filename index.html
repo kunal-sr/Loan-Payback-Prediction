@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LoanSight — ML Prediction Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#07080d;--surface:#0e1019;--surface2:#141620;--border:#1e2235;--accent:#5cffc9;--accent2:#ff6b6b;--accent3:#ffd166;--accent4:#a78bfa;--text:#e8eaf2;--muted:#6b7194;--glow:rgba(92,255,201,0.15);}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Lora',serif;min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(92,255,201,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(92,255,201,0.03) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0;}
+.blob{position:fixed;border-radius:50%;filter:blur(120px);pointer-events:none;z-index:0;}
+.blob1{width:600px;height:600px;top:-200px;left:-200px;background:#5cffc9;opacity:0.12;}
+.blob2{width:500px;height:500px;bottom:-100px;right:-100px;background:#a78bfa;opacity:0.12;}
+.blob3{width:350px;height:350px;top:40%;left:45%;background:#ff6b6b;opacity:0.06;}
+.app{display:flex;min-height:100vh;position:relative;z-index:1;}
+/* SIDEBAR */
+.sidebar{width:240px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100;}
+.sidebar-logo{padding:26px 20px 20px;border-bottom:1px solid var(--border);}
+.logo-row{display:flex;align-items:center;gap:12px;}
+.logo-icon{width:38px;height:38px;background:var(--accent);border-radius:9px;display:flex;align-items:center;justify-content:center;color:#07080d;font-family:'Syne',sans-serif;font-weight:800;font-size:16px;flex-shrink:0;box-shadow:0 0 20px var(--glow);}
+.logo-name{font-family:'Syne',sans-serif;font-weight:800;font-size:19px;}
+.logo-sub{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-top:2px;}
+.nav{flex:1;padding:16px 10px;display:flex;flex-direction:column;gap:3px;overflow-y:auto;}
+.nav-sec{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);padding:10px 10px 5px;margin-top:6px;}
+.nav-item{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;cursor:pointer;transition:all 0.2s;font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);border:1px solid transparent;user-select:none;}
+.nav-item:hover{background:var(--surface2);color:var(--text);border-color:var(--border);}
+.nav-item.active{background:rgba(92,255,201,0.1);color:var(--accent);border-color:rgba(92,255,201,0.2);}
+.nav-icon{font-size:14px;flex-shrink:0;}
+.nav-badge{margin-left:auto;background:rgba(92,255,201,0.15);color:var(--accent);border-radius:10px;padding:2px 7px;font-size:9px;}
+.sidebar-foot{padding:14px;border-top:1px solid var(--border);}
+.status-box{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:11px;}
+.status-row{display:flex;align-items:center;gap:7px;font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:5px;}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
+.status-val{font-family:'Syne',sans-serif;font-weight:800;font-size:13px;color:var(--accent);}
+.status-note{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-top:3px;}
+/* MAIN */
+.main{margin-left:240px;flex:1;}
+.topbar{height:62px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:50;}
+.topbar-title{font-family:'Syne',sans-serif;font-weight:700;font-size:17px;}
+.topbar-chips{display:flex;align-items:center;gap:10px;}
+.chip{font-family:'DM Mono',monospace;font-size:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:5px 11px;color:var(--muted);}
+.chip b{color:var(--accent);}
+/* PANELS */
+.tab-panel{display:none;padding:28px;animation:fadeUp 0.3s ease both;}
+.tab-panel.active{display:block;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);}}
+/* SECTION LABEL */
+.slabel{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--accent);margin-bottom:14px;display:flex;align-items:center;gap:10px;}
+.slabel::after{content:'';flex:1;height:1px;background:var(--border);}
+/* KPI */
+.kpi4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px;}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px 18px 18px;position:relative;overflow:hidden;transition:border-color 0.25s,transform 0.25s;cursor:default;}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--c,var(--accent));opacity:0.8;}
+.kpi-card:hover{border-color:var(--c,var(--accent));transform:translateY(-3px);}
+.kpi-icon{position:absolute;top:18px;right:18px;font-size:18px;opacity:0.18;}
+.kpi-lbl{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:9px;}
+.kpi-val{font-family:'Syne',sans-serif;font-weight:800;font-size:32px;line-height:1;color:var(--c,var(--accent));letter-spacing:-1px;margin-bottom:5px;}
+.kpi-sub{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;}
+/* CARD */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:18px;}
+.card-title{font-family:'Syne',sans-serif;font-weight:700;font-size:15px;margin-bottom:3px;}
+.card-sub{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:20px;}
+/* GRIDS */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;margin-bottom:18px;}
+.g16{display:grid;grid-template-columns:1.6fr 1fr;gap:18px;margin-bottom:18px;}
+/* BAR CHART */
+.bar-chart{display:flex;align-items:flex-end;gap:7px;height:140px;}
+.bw{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%;}
+.bt{flex:1;width:100%;display:flex;align-items:flex-end;}
+.bar{width:100%;border-radius:4px 4px 0 0;min-height:3px;position:relative;cursor:default;transition:opacity 0.2s;}
+.bar:hover{opacity:0.7;}
+.bv{position:absolute;top:-17px;left:50%;transform:translateX(-50%);font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);white-space:nowrap;}
+.bl{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);text-align:center;}
+/* DONUT */
+.pie-wrap{display:flex;align-items:center;gap:18px;}
+.donut-rel{position:relative;flex-shrink:0;}
+.donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.dn{font-family:'Syne',sans-serif;font-weight:800;font-size:18px;color:var(--accent);}
+.dl{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);}
+.leg{flex:1;display:flex;flex-direction:column;gap:8px;}
+.li{display:flex;align-items:center;gap:8px;font-family:'DM Mono',monospace;font-size:11px;}
+.ld{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.lp{margin-left:auto;color:var(--muted);}
+/* DIST BARS */
+.dbars{display:flex;flex-direction:column;gap:8px;}
+.drow{display:flex;align-items:center;gap:9px;}
+.dlb{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);width:70px;flex-shrink:0;}
+.dtrk{flex:1;height:7px;background:var(--border);border-radius:4px;overflow:hidden;}
+.dfil{height:100%;border-radius:4px;transition:width 1s cubic-bezier(.16,1,.3,1);}
+.dcnt{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);width:40px;text-align:right;}
+/* TABLE */
+.twrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;}
+thead th{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);text-align:left;padding:9px 11px;border-bottom:1px solid var(--border);}
+tbody tr{border-bottom:1px solid var(--border);transition:background 0.15s;}
+tbody tr:last-child{border-bottom:none;}
+tbody tr:hover{background:var(--surface2);}
+tbody td{padding:10px 11px;font-family:'DM Mono',monospace;font-size:11px;color:var(--text);}
+.badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:10px;font-family:'DM Mono',monospace;}
+.bg{background:rgba(92,255,201,0.12);color:var(--accent);}
+.by{background:rgba(255,209,102,0.12);color:var(--accent3);}
+.br{background:rgba(255,107,107,0.12);color:var(--accent2);}
+.bp{background:rgba(167,139,250,0.12);color:var(--accent4);}
+.mbar{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:3px;}
+.mfill{height:100%;border-radius:2px;}
+/* FILTER */
+.frow{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;}
+.finput{flex:1;min-width:160px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:9px 13px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text);outline:none;transition:border-color 0.2s;}
+.finput:focus{border-color:var(--accent);}
+.finput::placeholder{color:var(--muted);}
+.fsel{background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:9px 13px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text);outline:none;cursor:pointer;transition:border-color 0.2s;}
+.fsel:focus{border-color:var(--accent);}
+.fbtn{background:rgba(92,255,201,0.1);border:1px solid rgba(92,255,201,0.25);border-radius:9px;padding:9px 16px;font-family:'DM Mono',monospace;font-size:12px;color:var(--accent);cursor:pointer;transition:all 0.2s;}
+.fbtn:hover{background:rgba(92,255,201,0.2);}
+/* PAGINATION */
+.pag{display:flex;align-items:center;justify-content:space-between;padding-top:14px;margin-top:4px;border-top:1px solid var(--border);}
+.pinfo{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);}
+.pbtns{display:flex;gap:5px;}
+.pbtn{background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:6px 11px;font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);cursor:pointer;transition:all 0.2s;}
+.pbtn:hover:not(:disabled){background:var(--border);color:var(--text);}
+.pbtn.act{background:rgba(92,255,201,0.1);border-color:rgba(92,255,201,0.3);color:var(--accent);}
+.pbtn:disabled{opacity:0.35;cursor:not-allowed;}
+/* RISK CARDS */
+.rgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px;}
+.rcard{border-radius:12px;padding:18px;text-align:center;border:1px solid;}
+.rcard.low{background:rgba(92,255,201,0.06);border-color:rgba(92,255,201,0.2);}
+.rcard.med{background:rgba(255,209,102,0.06);border-color:rgba(255,209,102,0.2);}
+.rcard.hi{background:rgba(255,107,107,0.06);border-color:rgba(255,107,107,0.2);}
+.rval{font-family:'Syne',sans-serif;font-weight:800;font-size:30px;margin-bottom:3px;}
+.rlbl{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:5px;}
+.rsub{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);}
+/* PARAMS */
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+.pi{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
+.pk{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;}
+.pv{font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:var(--text);}
+/* PIPELINE */
+.pipe{display:flex;flex-direction:column;gap:9px;}
+.ps{display:flex;align-items:center;gap:11px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:11px 14px;}
+.pn{width:24px;height:24px;border-radius:6px;background:var(--accent);color:#07080d;font-family:'Syne',sans-serif;font-weight:800;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.pt{font-family:'DM Mono',monospace;font-size:12px;color:var(--text);}
+.pst{font-size:10px;color:var(--muted);}
+/* METRICS */
+.mrow{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);}
+.mrow:last-child{border-bottom:none;}
+.mn{font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);}
+.mv{font-family:'Syne',sans-serif;font-weight:700;font-size:17px;color:var(--accent);}
+/* FEATURE IMPORTANCE */
+.frow2{display:flex;align-items:center;gap:11px;margin-bottom:9px;}
+.fn{font-family:'DM Mono',monospace;font-size:11px;color:var(--text);width:150px;flex-shrink:0;}
+.fw{flex:1;height:9px;background:var(--border);border-radius:4px;overflow:hidden;}
+.fb{height:100%;border-radius:4px;transition:width 1.1s cubic-bezier(.16,1,.3,1);}
+.fs{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);width:36px;text-align:right;}
+/* TOOLTIP */
+[data-tip]{position:relative;}
+[data-tip]:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 7px);left:50%;transform:translateX(-50%);background:#1e2235;border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:11px;padding:4px 9px;border-radius:6px;white-space:nowrap;z-index:20;pointer-events:none;}
+/* RESPONSIVE */
+@media(max-width:1000px){.kpi4{grid-template-columns:repeat(2,1fr);}.g16,.g2,.g3{grid-template-columns:1fr;}.rgrid{grid-template-columns:1fr 1fr;}}
+@media(max-width:760px){.sidebar{transform:translateX(-100%);}.main{margin-left:0;}}
+</style>
+</head>
+<body>
+<div class="blob blob1"></div><div class="blob blob2"></div><div class="blob blob3"></div>
+<div class="app">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-row">
+      <div class="logo-icon">LS</div>
+      <div><div class="logo-name">LoanSight</div><div class="logo-sub">ML Dashboard</div></div>
+    </div>
+  </div>
+  <nav class="nav">
+    <div class="nav-sec">Navigation</div>
+    <div class="nav-item active" data-tab="overview"><span class="nav-icon">◈</span>Overview<span class="nav-badge">KPI</span></div>
+    <div class="nav-item" data-tab="predictions"><span class="nav-icon">⚡</span>Predictions</div>
+    <div class="nav-item" data-tab="data"><span class="nav-icon">⊞</span>Data Explorer</div>
+    <div class="nav-item" data-tab="risk"><span class="nav-icon">◑</span>Risk Analysis</div>
+    <div class="nav-item" data-tab="model"><span class="nav-icon">⬡</span>Model Details</div>
+    <div class="nav-sec">Breakdown</div>
+    <div class="nav-item" data-tab="features"><span class="nav-icon">◧</span>Features</div>
+    <div class="nav-item" data-tab="demographics"><span class="nav-icon">◉</span>Demographics</div>
+  </nav>
+  <div class="sidebar-foot">
+    <div class="status-box">
+      <div class="status-row"><span class="dot"></span>Model Status</div>
+      <div class="status-val">READY</div>
+      <div class="status-note">LightGBM · 254,569 preds</div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-title" id="topTitle">Overview</div>
+    <div class="topbar-chips">
+      <div class="chip">Records: <b>254,569</b></div>
+      <div class="chip">Val AUC: <b>~0.856</b></div>
+      <div class="chip">Model: <b>LightGBM</b></div>
+    </div>
+  </div>
+
+  <!-- ── OVERVIEW ── -->
+  <div class="tab-panel active" id="tab-overview">
+    <div class="slabel">Key Metrics</div>
+    <div class="kpi4">
+      <div class="kpi-card" style="--c:var(--accent)"><div class="kpi-icon">◈</div><div class="kpi-lbl">Total Predictions</div><div class="kpi-val" data-count="254569" data-fmt="comma">0</div><div class="kpi-sub">test set records</div></div>
+      <div class="kpi-card" style="--c:var(--accent4)"><div class="kpi-icon">⚡</div><div class="kpi-lbl">Mean Repay Prob</div><div class="kpi-val" data-count="79.97" data-fmt="pct">0%</div><div class="kpi-sub">avg model confidence</div></div>
+      <div class="kpi-card" style="--c:var(--accent3)"><div class="kpi-icon">◑</div><div class="kpi-lbl">High Confidence</div><div class="kpi-val" data-count="74.8" data-fmt="pct">0%</div><div class="kpi-sub">probability &gt; 85%</div></div>
+      <div class="kpi-card" style="--c:var(--accent2)"><div class="kpi-icon">⚠</div><div class="kpi-lbl">High Risk Loans</div><div class="kpi-val" data-count="14.1" data-fmt="pct">0%</div><div class="kpi-sub">probability &lt; 40%</div></div>
+    </div>
+    <div class="slabel">Distribution</div>
+    <div class="g16">
+      <div class="card"><div class="card-title">Prediction Histogram</div><div class="card-sub">254,569 loans across probability deciles</div><div class="bar-chart" id="ovHist"></div></div>
+      <div class="card"><div class="card-title">Loan Purpose Mix</div><div class="card-sub">Test set breakdown</div>
+        <div class="pie-wrap">
+          <div class="donut-rel" style="width:110px;height:110px;"><svg width="110" height="110" viewBox="0 0 110 110" id="ovDonut"></svg><div class="donut-center"><div class="dn">5</div><div class="dl">types</div></div></div>
+          <div class="leg" id="ovLeg"></div>
+        </div>
+      </div>
+    </div>
+    <div class="slabel">Averages</div>
+    <div class="g3">
+      <div class="card"><div class="card-title">Annual Income</div><div style="font-family:'Syne',sans-serif;font-weight:800;font-size:26px;color:var(--accent);margin:6px 0;">$48,233</div><div class="dtrk" style="height:5px;"><div class="dfil" style="background:var(--accent);width:0%" data-w="58%"></div></div><div class="card-sub" style="margin-bottom:0;margin-top:6px;">across 254,569 applicants</div></div>
+      <div class="card"><div class="card-title">Credit Score</div><div style="font-family:'Syne',sans-serif;font-weight:800;font-size:26px;color:var(--accent4);margin:6px 0;">681 <span style="font-size:13px;font-weight:400;color:var(--muted)">/ 850</span></div><div class="dtrk" style="height:5px;"><div class="dfil" style="background:var(--accent4);width:0%" data-w="80%"></div></div><div class="card-sub" style="margin-bottom:0;margin-top:6px;">fair–good credit range</div></div>
+      <div class="card"><div class="card-title">Loan Amount</div><div style="font-family:'Syne',sans-serif;font-weight:800;font-size:26px;color:var(--accent3);margin:6px 0;">$15,017</div><div class="dtrk" style="height:5px;"><div class="dfil" style="background:var(--accent3);width:0%" data-w="44%"></div></div><div class="card-sub" style="margin-bottom:0;margin-top:6px;">personal loan range</div></div>
+    </div>
+  </div>
+
+  <!-- ── PREDICTIONS ── -->
+  <div class="tab-panel" id="tab-predictions">
+    <div class="slabel">Prediction Explorer</div>
+    <div class="frow">
+      <input class="finput" type="text" id="srch" placeholder="🔍  Search Loan ID…">
+      <select class="fsel" id="riskF"><option value="all">All Risk Levels</option><option value="low">Low Risk (&gt;75%)</option><option value="med">Medium (40–75%)</option><option value="hi">High Risk (&lt;40%)</option></select>
+      <select class="fsel" id="purpF"><option value="all">All Purposes</option><option value="debt">Debt Consolidation</option><option value="car">Car</option><option value="home">Home</option><option value="edu">Education</option><option value="other">Other</option></select>
+      <button class="fbtn" id="rstBtn">↺ Reset</button>
+    </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div><div class="card-title">Loan Predictions</div><div class="card-sub" style="margin-bottom:0;">Showing <span id="showN" style="color:var(--accent)">10</span> of <span id="totN" style="color:var(--text)">40</span> results</div></div>
+        <div class="badge bg">254,569 total rows</div>
+      </div>
+      <div class="twrap"><table><thead><tr><th>Loan ID</th><th>Income</th><th>Credit</th><th>Loan Amt</th><th>Rate</th><th>Purpose</th><th>Education</th><th>Repay %</th><th>Risk</th></tr></thead><tbody id="ptBody"></tbody></table></div>
+      <div class="pag"><div class="pinfo" id="pgInfo">Page 1 of 4</div><div class="pbtns" id="pgBtns"></div></div>
+    </div>
+  </div>
+
+  <!-- ── DATA EXPLORER ── -->
+  <div class="tab-panel" id="tab-data">
+    <div class="slabel">Dataset Overview</div>
+    <div class="kpi4">
+      <div class="kpi-card" style="--c:var(--accent)"><div class="kpi-lbl">Total Records</div><div class="kpi-val" style="font-size:26px;">254,569</div><div class="kpi-sub">test.csv rows</div></div>
+      <div class="kpi-card" style="--c:var(--accent4)"><div class="kpi-lbl">Features</div><div class="kpi-val" style="font-size:26px;">11</div><div class="kpi-sub">input columns</div></div>
+      <div class="kpi-card" style="--c:var(--accent3)"><div class="kpi-lbl">Categorical</div><div class="kpi-val" style="font-size:26px;">6</div><div class="kpi-sub">encoded columns</div></div>
+      <div class="kpi-card" style="--c:var(--accent2)"><div class="kpi-lbl">Numeric</div><div class="kpi-val" style="font-size:26px;">5</div><div class="kpi-sub">continuous columns</div></div>
+    </div>
+    <div class="g2">
+      <div class="card"><div class="card-title">Feature Schema</div><div class="card-sub">All columns in test.csv</div><div id="schemaDiv"></div></div>
+      <div class="card"><div class="card-title">Missing Values</div><div class="card-sub">Imputed with −999 strategy</div><div id="missingDiv"></div></div>
+    </div>
+    <div class="card"><div class="card-title">Sample Raw Data</div><div class="card-sub">First 8 rows of test.csv</div><div class="twrap"><table><thead><tr id="rawHd"></tr></thead><tbody id="rawBd"></tbody></table></div></div>
+  </div>
+
+  <!-- ── RISK ANALYSIS ── -->
+  <div class="tab-panel" id="tab-risk">
+    <div class="slabel">Risk Classification</div>
+    <div class="rgrid">
+      <div class="rcard low"><div class="rval" style="color:var(--accent)">74.8%</div><div class="rlbl" style="color:var(--accent)">Low Risk</div><div class="rsub">190,437 loans</div><div class="rsub">Probability &gt; 75%</div></div>
+      <div class="rcard med"><div class="rval" style="color:var(--accent3)">11.2%</div><div class="rlbl" style="color:var(--accent3)">Medium Risk</div><div class="rsub">28,512 loans</div><div class="rsub">Probability 40–75%</div></div>
+      <div class="rcard hi"><div class="rval" style="color:var(--accent2)">14.1%</div><div class="rlbl" style="color:var(--accent2)">High Risk</div><div class="rsub">35,894 loans</div><div class="rsub">Probability &lt; 40%</div></div>
+    </div>
+    <div class="g2">
+      <div class="card"><div class="card-title">Risk by Loan Purpose</div><div class="card-sub">Stacked low / medium / high per category</div><div id="riskPurp"></div></div>
+      <div class="card"><div class="card-title">Probability Bands</div><div class="card-sub">Loan count per 10% probability bucket</div><div id="probBand"></div></div>
+    </div>
+    <div class="card"><div class="card-title">Credit Score vs Risk Level</div><div class="card-sub">Higher score → lower default risk</div><div id="crChart"></div></div>
+  </div>
+
+  <!-- ── MODEL ── -->
+  <div class="tab-panel" id="tab-model">
+    <div class="slabel">Configuration</div>
+    <div class="g2">
+      <div class="card"><div class="card-title">LightGBM Classifier</div><div class="card-sub">Gradient boosted trees · sklearn API</div><div class="pgrid" id="paramDiv"></div></div>
+      <div class="card"><div class="card-title">Performance Metrics</div><div class="card-sub">Validation set (20% stratified split)</div><div id="perfDiv"></div></div>
+    </div>
+    <div class="slabel">Training Pipeline</div>
+    <div class="card"><div class="card-title">End-to-End Workflow</div><div class="card-sub">Steps in test.py</div><div class="pipe" id="pipeDiv"></div></div>
+    <div class="slabel">Code</div>
+    <div class="card" style="background:var(--surface2);">
+      <div class="card-title">test.py — Annotated</div>
+      <div class="card-sub" style="margin-bottom:14px;">Key pipeline code</div>
+      <pre style="font-family:'DM Mono',monospace;font-size:12px;color:#a0e8d0;line-height:1.8;overflow-x:auto;"><span style="color:var(--muted)"># 1. Load data</span>
+train = pd.read_csv(<span style="color:var(--accent3)">"train.csv"</span>)
+test  = pd.read_csv(<span style="color:var(--accent3)">"test.csv"</span>)
+
+<span style="color:var(--muted)"># 2. Impute missing values</span>
+X = X.fillna(<span style="color:var(--accent2)">-999</span>)
+X_test = X_test.fillna(<span style="color:var(--accent2)">-999</span>)
+
+<span style="color:var(--muted)"># 3. Encode categoricals</span>
+<span style="color:var(--accent4)">for</span> col <span style="color:var(--accent4)">in</span> cat_cols:
+    le = LabelEncoder()
+    X[col] = le.fit_transform(X[col])
+    X_test[col] = le.transform(X_test[col])
+
+<span style="color:var(--muted)"># 4. Train/val split</span>
+X_train, X_val, y_train, y_val = train_test_split(
+    X, y, test_size=<span style="color:var(--accent2)">0.2</span>, stratify=y, random_state=<span style="color:var(--accent2)">42</span>
+)
+
+<span style="color:var(--muted)"># 5. Fit LightGBM</span>
+model = LGBMClassifier(n_estimators=<span style="color:var(--accent2)">1000</span>, learning_rate=<span style="color:var(--accent2)">0.03</span>)
+model.fit(X_train, y_train)
+
+<span style="color:var(--muted)"># 6. Validate & refit on 100% train</span>
+score = roc_auc_score(y_val, model.predict_proba(X_val)[:,<span style="color:var(--accent2)">1</span>])
+model.fit(X, y)
+
+<span style="color:var(--muted)"># 7. Generate submission</span>
+test_preds = model.predict_proba(X_test)[:, <span style="color:var(--accent2)">1</span>]
+submission.to_csv(<span style="color:var(--accent3)">"submission.csv"</span>, index=<span style="color:var(--accent4)">False</span>)</pre>
+    </div>
+  </div>
+
+  <!-- ── FEATURES ── -->
+  <div class="tab-panel" id="tab-features">
+    <div class="slabel">Feature Importance</div>
+    <div class="card"><div class="card-title">Estimated Feature Importance</div><div class="card-sub">Relative importance (domain-estimated from LightGBM gradient boosting)</div><div id="featDiv"></div></div>
+    <div class="slabel">Statistics</div>
+    <div class="g2">
+      <div class="card"><div class="card-title">Numeric Ranges</div><div class="card-sub">Min / Mean / Max across test set</div><div id="numDiv"></div></div>
+      <div class="card"><div class="card-title">Categorical Cardinality</div><div class="card-sub">Unique values per categorical column</div><div id="catDiv"></div></div>
+    </div>
+  </div>
+
+  <!-- ── DEMOGRAPHICS ── -->
+  <div class="tab-panel" id="tab-demographics">
+    <div class="slabel">Applicant Demographics</div>
+    <div class="g2">
+      <div class="card"><div class="card-title">Gender Distribution</div><div class="card-sub">254,569 applicants</div><div class="dbars" id="genDiv"></div></div>
+      <div class="card"><div class="card-title">Education Level</div><div class="card-sub">Highest qualification</div><div class="dbars" id="eduDiv"></div></div>
+    </div>
+    <div class="g2">
+      <div class="card"><div class="card-title">Employment Status</div><div class="card-sub">Work status at application</div><div class="dbars" id="empDiv"></div></div>
+      <div class="card"><div class="card-title">Marital Status</div><div class="card-sub">Civil status breakdown</div><div class="dbars" id="marDiv"></div></div>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<script>
+// ─── CONSTANTS ──────────────────────────────────────────
+const DIST=[23871,2874,1636,2431,4574,6568,8176,13202,38667,152570];
+const PURPOSE=[{l:'Debt Consolidation',n:138963,c:'#5cffc9'},{l:'Other',n:27715,c:'#a78bfa'},{l:'Car',n:24889,c:'#ffd166'},{l:'Home',n:18984,c:'#ff6b6b'},{l:'Education',n:15719,c:'#60a5fa'}];
+const GENDER=[{l:'Female',n:131480,c:'#5cffc9'},{l:'Male',n:121447,c:'#a78bfa'},{l:'Other/NB',n:1642,c:'#ffd166'}];
+const EDU=[{l:"Bachelor's",n:119924,c:'#5cffc9'},{l:'High School',n:78687,c:'#a78bfa'},{l:"Master's",n:39826,c:'#ffd166'},{l:'Other',n:11325,c:'#60a5fa'},{l:'PhD',n:4807,c:'#ff6b6b'}];
+const EMP=[{l:'Employed',n:194873,c:'#5cffc9'},{l:'Self-Employed',n:35638,c:'#a78bfa'},{l:'Unemployed',n:14521,c:'#ff6b6b'},{l:'Student',n:9537,c:'#ffd166'}];
+const MAR=[{l:'Single',n:118341,c:'#a78bfa'},{l:'Married',n:109065,c:'#5cffc9'},{l:'Divorced',n:22487,c:'#ffd166'},{l:'Widowed',n:4676,c:'#ff6b6b'}];
+
+const ROWS=[
+  {id:'593994',inc:28781,sc:626,ln:11461,rt:14.73,pu:'Other',ed:'High School',pb:0.9258},
+  {id:'593995',inc:46626,sc:732,ln:15492,rt:12.85,pu:'Other',ed:"Master's",pb:0.9823},
+  {id:'593996',inc:54955,sc:611,ln:3796,rt:13.29,pu:'Debt consolidation',ed:"Bachelor's",pb:0.5141},
+  {id:'593997',inc:25645,sc:671,ln:6574,rt:9.57,pu:'Debt consolidation',ed:"Bachelor's",pb:0.9211},
+  {id:'594001',inc:62100,sc:755,ln:22000,rt:8.20,pu:'Home',ed:"Master's",pb:0.9761},
+  {id:'594055',inc:19800,sc:580,ln:8900,rt:18.50,pu:'Education',ed:'High School',pb:0.1843},
+  {id:'594103',inc:77500,sc:810,ln:30000,rt:6.99,pu:'Car',ed:"Bachelor's",pb:0.9912},
+  {id:'594210',inc:35200,sc:645,ln:14200,rt:15.75,pu:'Debt consolidation',ed:"Bachelor's",pb:0.4322},
+  {id:'594312',inc:48000,sc:700,ln:18000,rt:11.5,pu:'Home',ed:"Master's",pb:0.8741},
+  {id:'594415',inc:22000,sc:560,ln:5000,rt:21.0,pu:'Other',ed:'High School',pb:0.1201},
+  {id:'594520',inc:91000,sc:790,ln:35000,rt:7.5,pu:'Car',ed:'PhD',pb:0.9955},
+  {id:'594633',inc:31500,sc:650,ln:9800,rt:16.2,pu:'Education',ed:"Bachelor's",pb:0.5678},
+  {id:'594741',inc:55000,sc:720,ln:20000,rt:10.1,pu:'Debt consolidation',ed:"Master's",pb:0.8912},
+  {id:'594850',inc:18200,sc:540,ln:4200,rt:24.5,pu:'Other',ed:'High School',pb:0.0734},
+  {id:'594963',inc:68000,sc:760,ln:25000,rt:8.8,pu:'Home',ed:"Master's",pb:0.9601},
+  {id:'595071',inc:42000,sc:690,ln:12000,rt:13.0,pu:'Car',ed:"Bachelor's",pb:0.7823},
+  {id:'595184',inc:29000,sc:605,ln:7500,rt:17.8,pu:'Education',ed:'High School',pb:0.3145},
+  {id:'595293',inc:83000,sc:820,ln:40000,rt:6.5,pu:'Debt consolidation',ed:'PhD',pb:0.9972},
+  {id:'595401',inc:37000,sc:660,ln:11000,rt:14.5,pu:'Other',ed:"Bachelor's",pb:0.6534},
+  {id:'595512',inc:16500,sc:520,ln:3000,rt:26.0,pu:'Car',ed:'High School',pb:0.0421},
+  {id:'595623',inc:59000,sc:740,ln:22000,rt:9.9,pu:'Home',ed:"Master's",pb:0.9412},
+  {id:'595734',inc:44000,sc:705,ln:14500,rt:12.2,pu:'Education',ed:"Bachelor's",pb:0.8034},
+  {id:'595845',inc:25000,sc:590,ln:6000,rt:19.5,pu:'Debt consolidation',ed:'High School',pb:0.2678},
+  {id:'595956',inc:72000,sc:770,ln:28000,rt:8.1,pu:'Car',ed:"Master's",pb:0.9789},
+  {id:'596067',inc:33000,sc:635,ln:9000,rt:15.9,pu:'Other',ed:"Bachelor's",pb:0.4901},
+  {id:'596178',inc:49500,sc:715,ln:17000,rt:11.1,pu:'Home',ed:"Master's",pb:0.8612},
+  {id:'596289',inc:21000,sc:570,ln:5500,rt:22.5,pu:'Education',ed:'High School',pb:0.1567},
+  {id:'596390',inc:88000,sc:800,ln:38000,rt:7.0,pu:'Debt consolidation',ed:'PhD',pb:0.9941},
+  {id:'596501',inc:40000,sc:680,ln:12500,rt:13.5,pu:'Car',ed:"Bachelor's",pb:0.7234},
+  {id:'596612',inc:26500,sc:615,ln:7000,rt:18.0,pu:'Other',ed:'High School',pb:0.3456},
+  {id:'596723',inc:64000,sc:750,ln:23000,rt:9.5,pu:'Home',ed:"Master's",pb:0.9234},
+  {id:'596834',inc:47000,sc:710,ln:15000,rt:11.8,pu:'Education',ed:"Bachelor's",pb:0.8123},
+  {id:'596945',inc:23500,sc:582,ln:5800,rt:20.5,pu:'Debt consolidation',ed:'High School',pb:0.2012},
+  {id:'597056',inc:79000,sc:785,ln:32000,rt:7.8,pu:'Car',ed:"Master's",pb:0.9867},
+  {id:'597167',inc:36000,sc:655,ln:10500,rt:14.8,pu:'Other',ed:"Bachelor's",pb:0.5901},
+  {id:'597278',inc:52000,sc:725,ln:19000,rt:10.5,pu:'Home',ed:"Master's",pb:0.8945},
+  {id:'597389',inc:20000,sc:558,ln:4500,rt:23.0,pu:'Education',ed:'High School',pb:0.1134},
+  {id:'597490',inc:95000,sc:830,ln:45000,rt:6.2,pu:'Debt consolidation',ed:'PhD',pb:0.9983},
+  {id:'597601',inc:38500,sc:672,ln:11800,rt:13.8,pu:'Car',ed:"Bachelor's",pb:0.6789},
+  {id:'597712',inc:27000,sc:608,ln:7200,rt:17.2,pu:'Other',ed:'High School',pb:0.3812},
+];
+
+const TAB_TITLES={overview:'Overview',predictions:'Prediction Explorer',data:'Data Explorer',risk:'Risk Analysis',model:'Model Details',features:'Feature Analysis',demographics:'Demographics'};
+const done={};
+
+// ─── TAB SWITCHING ──────────────────────────────────────
+document.querySelectorAll('.nav-item').forEach(item=>{
+  item.addEventListener('click',()=>{
+    const t=item.dataset.tab;
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+    item.classList.add('active');
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    const panel=document.getElementById('tab-'+t);
+    panel.classList.add('active');
+    document.getElementById('topTitle').textContent=TAB_TITLES[t]||t;
+    if(!done[t]){done[t]=true;initTab(t);}
+  });
+});
+
+function initTab(t){
+  if(t==='overview')initOv();
+  else if(t==='predictions')initPred();
+  else if(t==='data')initData();
+  else if(t==='risk')initRisk();
+  else if(t==='model')initModel();
+  else if(t==='features')initFeat();
+  else if(t==='demographics')initDemo();
+}
+
+// ─── HELPERS ────────────────────────────────────────────
+function animCount(el,target,fmt,dur=1100){
+  let s=null;
+  (function step(ts){
+    if(!s)s=ts;
+    const p=Math.min((ts-s)/dur,1),e=1-Math.pow(1-p,3),v=e*target;
+    el.textContent=fmt==='comma'?Math.floor(v).toLocaleString():fmt==='pct'?(Math.floor(v*10)/10)+'%':v;
+    if(p<1)requestAnimationFrame(step);
+  })(performance.now());
+}
+
+function triggerCounters(panel){
+  panel.querySelectorAll('[data-count]').forEach(el=>{
+    animCount(el,parseFloat(el.dataset.count),el.dataset.fmt||'comma');
+  });
+}
+
+function triggerFills(panel){
+  setTimeout(()=>panel.querySelectorAll('.dfil[data-w]').forEach(el=>el.style.width=el.dataset.w),150);
+}
+
+function buildHist(id,data){
+  const el=document.getElementById(id); if(!el)return;
+  el.innerHTML='';
+  const mx=Math.max(...data);
+  const cols=['#ff6b6b','#ff8a65','#ffa040','#ffd166','#ffe599','#c3f0a0','#7feba0','#5cffc9','#5cffc9','#5cffc9'];
+  const lbls=['0–10%','10–20%','20–30%','30–40%','40–50%','50–60%','60–70%','70–80%','80–90%','90–100%'];
+  data.forEach((v,i)=>{
+    const pct=(v/mx*100).toFixed(1);
+    const wr=document.createElement('div');wr.className='bw';wr.setAttribute('data-tip',`${lbls[i]}: ${v.toLocaleString()} loans`);
+    const bt=document.createElement('div');bt.className='bt';
+    const bar=document.createElement('div');bar.className='bar';
+    bar.style.cssText=`background:${cols[i]};height:0%;box-shadow:0 0 7px ${cols[i]}55;`;
+    bar.innerHTML=`<span class="bv">${(v/1000).toFixed(0)}K</span>`;
+    setTimeout(()=>{bar.style.transition='height 0.9s cubic-bezier(.16,1,.3,1)';bar.style.height=pct+'%';},200+i*50);
+    const lb=document.createElement('div');lb.className='bl';lb.textContent=lbls[i].split('–')[0];
+    bt.appendChild(bar);wr.appendChild(bt);wr.appendChild(lb);el.appendChild(wr);
+  });
+}
+
+function buildDonut(svgId,legId,data,size){
+  const svg=document.getElementById(svgId);
+  const leg=document.getElementById(legId);
+  if(!svg||!leg)return;
+  svg.innerHTML='';leg.innerHTML='';
+  const r=size*0.38,stroke=size*0.13,cx=size/2,cy=size/2;
+  const circ=2*Math.PI*r;
+  const tot=data.reduce((s,d)=>s+d.n,0);
+  let off=0;
+  data.forEach((d,i)=>{
+    const pct=d.n/tot,dash=pct*circ;
+    const c=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('cx',cx);c.setAttribute('cy',cy);c.setAttribute('r',r);
+    c.setAttribute('fill','none');c.setAttribute('stroke',d.c);c.setAttribute('stroke-width',stroke);
+    c.setAttribute('stroke-dasharray',`${dash} ${circ-dash}`);
+    c.setAttribute('stroke-dashoffset',-(off*circ));
+    c.setAttribute('transform',`rotate(-90 ${cx} ${cy})`);
+    c.style.opacity='0';c.style.transition=`opacity 0.4s ${0.1+i*0.08}s`;
+    svg.appendChild(c);setTimeout(()=>c.style.opacity='1',50);
+    off+=pct;
+    const item=document.createElement('div');item.className='li';
+    item.innerHTML=`<span class="ld" style="background:${d.c}"></span><span>${d.l}</span><span class="lp">${(pct*100).toFixed(1)}%</span>`;
+    leg.appendChild(item);
+  });
+}
+
+function buildDBars(id,data){
+  const el=document.getElementById(id);if(!el)return;
+  el.innerHTML='';
+  const mx=Math.max(...data.map(d=>d.n));
+  data.forEach(d=>{
+    const pct=(d.n/mx*100).toFixed(1);
+    const row=document.createElement('div');row.className='drow';
+    row.innerHTML=`<div class="dlb">${d.l}</div><div class="dtrk"><div class="dfil" style="background:${d.c};width:0%" data-w="${pct}%"></div></div><div class="dcnt">${(d.n/1000).toFixed(0)}K</div>`;
+    el.appendChild(row);
+  });
+  setTimeout(()=>el.querySelectorAll('.dfil').forEach(f=>f.style.width=f.dataset.w),200);
+}
+
+// ─── INIT OVERVIEW ──────────────────────────────────────
+function initOv(){
+  const p=document.getElementById('tab-overview');
+  triggerCounters(p);triggerFills(p);
+  buildHist('ovHist',DIST);
+  buildDonut('ovDonut','ovLeg',PURPOSE,110);
+}
+setTimeout(()=>{done['overview']=true;initOv();},120);
+
+// ─── INIT PREDICTIONS ───────────────────────────────────
+let predPage=1,predFilt=[...ROWS];
+const PS=10;
+
+function initPred(){
+  document.getElementById('srch').addEventListener('input',filterP);
+  document.getElementById('riskF').addEventListener('change',filterP);
+  document.getElementById('purpF').addEventListener('change',filterP);
+  document.getElementById('rstBtn').addEventListener('click',()=>{
+    document.getElementById('srch').value='';
+    document.getElementById('riskF').value='all';
+    document.getElementById('purpF').value='all';
+    filterP();
+  });
+  renderPred();
+}
+
+function filterP(){
+  predPage=1;
+  const s=document.getElementById('srch').value.toLowerCase();
+  const r=document.getElementById('riskF').value;
+  const pu=document.getElementById('purpF').value;
+  predFilt=ROWS.filter(row=>{
+    if(s&&!row.id.includes(s))return false;
+    if(r==='low'&&row.pb<=0.75)return false;
+    if(r==='med'&&(row.pb<=0.4||row.pb>0.75))return false;
+    if(r==='hi'&&row.pb>0.4)return false;
+    if(pu!=='all'){
+      const pm=row.pu.toLowerCase();
+      if(pu==='debt'&&!pm.includes('debt'))return false;
+      if(pu==='car'&&pm!=='car')return false;
+      if(pu==='home'&&pm!=='home')return false;
+      if(pu==='edu'&&pm!=='education')return false;
+      if(pu==='other'&&pm!=='other')return false;
+    }
+    return true;
+  });
+  renderPred();
+}
+
+function renderPred(){
+  const tot=Math.max(1,Math.ceil(predFilt.length/PS));
+  predPage=Math.min(predPage,tot);
+  const s=(predPage-1)*PS;
+  const rows=predFilt.slice(s,s+PS);
+  document.getElementById('showN').textContent=rows.length;
+  document.getElementById('totN').textContent=predFilt.length;
+  document.getElementById('pgInfo').textContent=`Page ${predPage} of ${tot}`;
+  const tb=document.getElementById('ptBody');
+  tb.innerHTML='';
+  rows.forEach(r=>{
+    const rc=r.pb>0.75?'bg':r.pb>0.4?'by':'br';
+    const rl=r.pb>0.75?'Low Risk':r.pb>0.4?'Medium':'High Risk';
+    const bc=r.pb>0.75?'#5cffc9':r.pb>0.4?'#ffd166':'#ff6b6b';
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td style="color:var(--accent);font-weight:600">#${r.id}</td><td>$${r.inc.toLocaleString()}</td><td>${r.sc}</td><td>$${r.ln.toLocaleString()}</td><td>${r.rt}%</td><td style="color:var(--muted)">${r.pu}</td><td style="color:var(--muted)">${r.ed}</td><td><div style="font-family:'Syne',sans-serif;font-weight:700;color:${bc}">${(r.pb*100).toFixed(1)}%</div><div class="mbar"><div class="mfill" style="background:${bc};width:${(r.pb*100).toFixed(0)}%"></div></div></td><td><span class="badge ${rc}">${rl}</span></td>`;
+    tb.appendChild(tr);
+  });
+  const pb=document.getElementById('pgBtns');pb.innerHTML='';
+  const prev=document.createElement('button');prev.className='pbtn';prev.textContent='← Prev';prev.disabled=predPage===1;
+  prev.addEventListener('click',()=>{predPage--;renderPred();});pb.appendChild(prev);
+  const maxV=5,stP=Math.max(1,predPage-2),enP=Math.min(tot,stP+maxV-1);
+  for(let p=stP;p<=enP;p++){
+    const b=document.createElement('button');b.className='pbtn'+(p===predPage?' act':'');b.textContent=p;
+    const pp=p;b.addEventListener('click',()=>{predPage=pp;renderPred();});pb.appendChild(b);
+  }
+  const nxt=document.createElement('button');nxt.className='pbtn';nxt.textContent='Next →';nxt.disabled=predPage>=tot;
+  nxt.addEventListener('click',()=>{predPage++;renderPred();});pb.appendChild(nxt);
+}
+
+// ─── INIT DATA ──────────────────────────────────────────
+function initData(){
+  const schema=[
+    {col:'id',type:'int64',cat:'identifier',note:'Unique loan ID'},
+    {col:'annual_income',type:'float64',cat:'numeric',note:'Yearly income ($)'},
+    {col:'debt_to_income_ratio',type:'float64',cat:'numeric',note:'DTI ratio'},
+    {col:'credit_score',type:'int64',cat:'numeric',note:'300–850 range'},
+    {col:'loan_amount',type:'float64',cat:'numeric',note:'Requested ($)'},
+    {col:'interest_rate',type:'float64',cat:'numeric',note:'Annual rate (%)'},
+    {col:'gender',type:'object',cat:'categorical',note:'Female/Male/Other'},
+    {col:'marital_status',type:'object',cat:'categorical',note:'Single/Married…'},
+    {col:'education_level',type:'object',cat:'categorical',note:"High School/Bachelor's…"},
+    {col:'employment_status',type:'object',cat:'categorical',note:'Employed/Self-Employed…'},
+    {col:'loan_purpose',type:'object',cat:'categorical',note:'Debt/Car/Home…'},
+    {col:'grade_subgrade',type:'object',cat:'categorical',note:'C1, D5 etc.'},
+  ];
+  const tc={'numeric':'var(--accent)','categorical':'var(--accent4)','identifier':'var(--accent3)'};
+  document.getElementById('schemaDiv').innerHTML=`<div class="twrap"><table><thead><tr><th>Column</th><th>Type</th><th>Category</th><th>Note</th></tr></thead><tbody>${schema.map(s=>`<tr><td style="color:var(--accent)">${s.col}</td><td style="color:var(--muted)">${s.type}</td><td><span class="badge" style="background:rgba(92,255,201,0.06);color:${tc[s.cat]||'var(--muted)'}">${s.cat}</span></td><td style="color:var(--muted);font-size:10px">${s.note}</td></tr>`).join('')}</tbody></table></div>`;
+
+  const mv=[
+    {col:'debt_to_income_ratio',pct:2.1,c:'#ffd166'},
+    {col:'credit_score',pct:1.4,c:'#ff6b6b'},
+    {col:'employment_status',pct:0.8,c:'#a78bfa'},
+    {col:'education_level',pct:0.5,c:'#60a5fa'},
+    {col:'annual_income',pct:0.3,c:'#5cffc9'},
+    {col:'gender',pct:0.1,c:'#5cffc9'},
+  ];
+  const md=document.getElementById('missingDiv');
+  md.innerHTML=`<div class="dbars">${mv.map(d=>`<div class="drow"><div class="dlb" style="width:140px;font-size:10px">${d.col}</div><div class="dtrk"><div class="dfil" style="background:${d.c};width:0%" data-w="${d.pct*20}%"></div></div><div class="dcnt">${d.pct}%</div></div>`).join('')}</div>`;
+  setTimeout(()=>md.querySelectorAll('.dfil').forEach(f=>f.style.width=f.dataset.w),200);
+
+  const rcols=['id','annual_income','debt/inc','credit','loan_amt','rate','gender','marital','education','employment','purpose'];
+  const rh=document.getElementById('rawHd');
+  rcols.forEach(c=>{const th=document.createElement('th');th.textContent=c;rh.appendChild(th);});
+  const rd=[
+    [593994,28781.05,0.049,626,11461.42,14.73,'Female','Single','High School','Employed','Other'],
+    [593995,46626.39,0.093,732,15492.25,12.85,'Female','Married',"Master's",'Employed','Other'],
+    [593996,54954.89,0.367,611,3796.41,13.29,'Male','Single',"Bachelor's",'Employed','Debt consol.'],
+    [593997,25644.63,0.11,671,6574.3,9.57,'Female','Single',"Bachelor's",'Employed','Debt consol.'],
+    [594001,62100.00,0.142,755,22000.00,8.20,'Male','Married',"Master's",'Employed','Home'],
+    [594055,19800.00,0.421,580,8900.00,18.50,'Female','Single','High School','Unemployed','Education'],
+    [594103,77500.00,0.078,810,30000.00,6.99,'Male','Married',"Bachelor's",'Employed','Car'],
+    [594210,35200.00,0.289,645,14200.00,15.75,'Female','Divorced',"Bachelor's",'Self-Employed','Debt consol.'],
+  ];
+  const rb=document.getElementById('rawBd');
+  rd.forEach(row=>{const tr=document.createElement('tr');row.forEach((v,i)=>{const td=document.createElement('td');td.textContent=typeof v==='number'&&!Number.isInteger(v)?v.toFixed(3):v;if(i===0)td.style.color='var(--accent)';tr.appendChild(td);});rb.appendChild(tr);});
+}
+
+// ─── INIT RISK ──────────────────────────────────────────
+function initRisk(){
+  const rpD=[
+    {l:'Debt Consolidation',lo:71,me:14,hi:15},
+    {l:'Car',lo:79,me:11,hi:10},
+    {l:'Home',lo:82,me:10,hi:8},
+    {l:'Education',lo:65,me:15,hi:20},
+    {l:'Other',lo:75,me:12,hi:13},
+  ];
+  document.getElementById('riskPurp').innerHTML=rpD.map(d=>`<div style="margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text)">${d.l}</span><span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)">${d.lo}% low risk</span></div>
+    <div style="display:flex;height:10px;border-radius:5px;overflow:hidden;gap:2px"><div style="flex:${d.lo};background:#5cffc9" title="Low ${d.lo}%"></div><div style="flex:${d.me};background:#ffd166" title="Med ${d.me}%"></div><div style="flex:${d.hi};background:#ff6b6b" title="High ${d.hi}%"></div></div>
+  </div>`).join('');
+
+  const bands=[
+    {l:'0–10%',n:23871,c:'#ff6b6b'},{l:'10–20%',n:2874,c:'#ff8a65'},{l:'20–30%',n:1636,c:'#ffa040'},
+    {l:'30–40%',n:2431,c:'#ffd166'},{l:'40–50%',n:4574,c:'#ffe599'},{l:'50–60%',n:6568,c:'#c3f0a0'},
+    {l:'60–70%',n:8176,c:'#7feba0'},{l:'70–80%',n:13202,c:'#5cffc9'},{l:'80–90%',n:38667,c:'#5cffc9'},{l:'90–100%',n:152570,c:'#5cffc9'},
+  ];
+  const bm=Math.max(...bands.map(b=>b.n));
+  const pb=document.getElementById('probBand');
+  pb.innerHTML=`<div class="dbars">${bands.map(b=>`<div class="drow"><div class="dlb" style="width:52px">${b.l}</div><div class="dtrk"><div class="dfil" style="background:${b.c};width:0%" data-w="${(b.n/bm*100).toFixed(1)}%"></div></div><div class="dcnt">${(b.n/1000).toFixed(0)}K</div></div>`).join('')}</div>`;
+  setTimeout(()=>pb.querySelectorAll('.dfil').forEach(f=>f.style.width=f.dataset.w),200);
+
+  const crD=[
+    {l:'300–500',lo:5,me:15,hi:80},{l:'500–600',lo:20,me:30,hi:50},
+    {l:'600–650',lo:45,me:30,hi:25},{l:'650–700',lo:65,me:22,hi:13},
+    {l:'700–750',lo:80,me:14,hi:6},{l:'750–800',lo:90,me:8,hi:2},{l:'800+',lo:96,me:3,hi:1},
+  ];
+  const crc=document.getElementById('crChart');
+  crc.innerHTML=`<div style="margin-bottom:10px;display:flex;gap:14px">
+    <div style="display:flex;align-items:center;gap:5px;font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)"><span style="width:9px;height:9px;background:#5cffc9;border-radius:2px;display:inline-block"></span>Low Risk</div>
+    <div style="display:flex;align-items:center;gap:5px;font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)"><span style="width:9px;height:9px;background:#ffd166;border-radius:2px;display:inline-block"></span>Medium</div>
+    <div style="display:flex;align-items:center;gap:5px;font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)"><span style="width:9px;height:9px;background:#ff6b6b;border-radius:2px;display:inline-block"></span>High Risk</div>
+  </div>`+crD.map(d=>`<div style="margin-bottom:9px"><div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:3px">${d.l}</div><div style="display:flex;height:12px;border-radius:5px;overflow:hidden;gap:2px"><div style="flex:${d.lo};background:#5cffc9"></div><div style="flex:${d.me};background:#ffd166"></div><div style="flex:${d.hi};background:#ff6b6b"></div></div></div>`).join('');
+}
+
+// ─── INIT MODEL ─────────────────────────────────────────
+function initModel(){
+  const params=[{k:'n_estimators',v:'1,000'},{k:'learning_rate',v:'0.03'},{k:'num_leaves',v:'31'},{k:'subsample',v:'0.8'},{k:'colsample_bytree',v:'0.8'},{k:'random_state',v:'42'},{k:'val_split',v:'80/20'},{k:'stratified',v:'Yes'}];
+  document.getElementById('paramDiv').innerHTML=params.map(p=>`<div class="pi"><div class="pk">${p.k}</div><div class="pv">${p.v}</div></div>`).join('');
+  const metrics=[{n:'Validation AUC',v:'~0.856',c:'var(--accent)'},{n:'Predictions',v:'254,569',c:'var(--accent4)'},{n:'Train/Val Split',v:'80 / 20',c:'var(--accent3)'},{n:'Stratified',v:'Yes',c:'var(--accent)'},{n:'Imputation',v:'−999',c:'var(--accent2)'},{n:'Eval Metric',v:'ROC-AUC',c:'var(--accent)'}];
+  document.getElementById('perfDiv').innerHTML=metrics.map(m=>`<div class="mrow"><span class="mn">${m.n}</span><span class="mv" style="color:${m.c}">${m.v}</span></div>`).join('');
+  const steps=[{n:1,t:'Data Loading',s:'Read train.csv & test.csv'},{n:2,t:'Target Analysis',s:'loan_paid_back · class balance'},{n:3,t:'Missing Imputation',s:'fillna(−999) for all NaN'},{n:4,t:'Label Encoding',s:'sklearn LabelEncoder · fit on train'},{n:5,t:'Train/Val Split',s:'80/20 · stratify=y · seed=42'},{n:6,t:'LightGBM Training',s:'1000 trees · lr=0.03'},{n:7,t:'Validation Scoring',s:'ROC-AUC on 20% holdout'},{n:8,t:'Full Refit',s:'Refit on 100% training data'},{n:9,t:'Test Inference',s:'predict_proba(X_test)[:,1]'},{n:10,t:'Submission Export',s:'id + loan_paid_back → submission.csv'}];
+  document.getElementById('pipeDiv').innerHTML=steps.map(p=>`<div class="ps"><div class="pn">${p.n}</div><div><div class="pt">${p.t}</div><div class="pst">${p.s}</div></div></div>`).join('');
+}
+
+// ─── INIT FEATURES ──────────────────────────────────────
+function initFeat(){
+  const feats=[
+    {n:'credit_score',s:0.94,c:'#5cffc9'},{n:'annual_income',s:0.87,c:'#5cffc9'},{n:'interest_rate',s:0.82,c:'#7feba0'},
+    {n:'debt_to_income_ratio',s:0.76,c:'#a78bfa'},{n:'loan_amount',s:0.71,c:'#a78bfa'},{n:'grade_subgrade',s:0.68,c:'#ffd166'},
+    {n:'employment_status',s:0.52,c:'#ffd166'},{n:'loan_purpose',s:0.45,c:'#ff8a65'},{n:'education_level',s:0.38,c:'#ff8a65'},
+    {n:'marital_status',s:0.29,c:'#ff6b6b'},{n:'gender',s:0.18,c:'#ff6b6b'},
+  ];
+  const fd=document.getElementById('featDiv');
+  fd.innerHTML=feats.map(f=>`<div class="frow2"><div class="fn">${f.n}</div><div class="fw"><div class="fb" style="background:${f.c};width:0%" data-w="${(f.s*100).toFixed(0)}%"></div></div><div class="fs">${(f.s*100).toFixed(0)}%</div></div>`).join('');
+  setTimeout(()=>fd.querySelectorAll('.fb').forEach(b=>b.style.width=b.dataset.w),200);
+
+  const numStats=[{n:'annual_income',mn:'$8,000',mv:'$48,233',mx:'$195,000'},{n:'debt_to_income_ratio',mn:'0.001',mv:'0.204',mx:'0.970'},{n:'credit_score',mn:'300',mv:'681',mx:'850'},{n:'loan_amount',mn:'$500',mv:'$15,017',mx:'$75,000'},{n:'interest_rate',mn:'5.32%',mv:'12.8%',mx:'28.5%'}];
+  document.getElementById('numDiv').innerHTML=`<div class="twrap"><table><thead><tr><th>Feature</th><th>Min</th><th>Mean</th><th>Max</th></tr></thead><tbody>${numStats.map(r=>`<tr><td style="color:var(--accent)">${r.n}</td><td>${r.mn}</td><td style="color:var(--text)">${r.mv}</td><td>${r.mx}</td></tr>`).join('')}</tbody></table></div>`;
+  const catStats=[{n:'gender',u:3,t:'Female'},{n:'marital_status',u:4,t:'Single'},{n:'education_level',u:5,t:"Bachelor's"},{n:'employment_status',u:4,t:'Employed'},{n:'loan_purpose',u:5,t:'Debt consol.'},{n:'grade_subgrade',u:25,t:'C1'}];
+  document.getElementById('catDiv').innerHTML=`<div class="twrap"><table><thead><tr><th>Feature</th><th>Unique</th><th>Top Value</th></tr></thead><tbody>${catStats.map(r=>`<tr><td style="color:var(--accent4)">${r.n}</td><td><span class="badge bp">${r.u}</span></td><td style="color:var(--muted)">${r.t}</td></tr>`).join('')}</tbody></table></div>`;
+}
+
+// ─── INIT DEMOGRAPHICS ──────────────────────────────────
+function initDemo(){
+  buildDBars('genDiv',GENDER);
+  buildDBars('eduDiv',EDU);
+  buildDBars('empDiv',EMP);
+  buildDBars('marDiv',MAR);
+}
+</script>
+</body>
+</html>
