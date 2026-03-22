@@ -9,6 +9,8 @@ Financial institutions face risks when issuing loans. This project aims to build
 ## 🔗 Website Link:
 **[Loansight](https://loan-payback-prediction-loansight.vercel.app/)**
 
+--------
+
 ## 📂 Dataset
 
 The dataset consists of:
