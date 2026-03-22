@@ -6,6 +6,9 @@ This project focuses on predicting whether a loan will be paid back or not using
 
 Financial institutions face risks when issuing loans. This project aims to build a predictive model that determines the likelihood of a borrower repaying a loan, helping reduce financial risk and improve decision-making.
 
+## 🔗 Website Link:
+**[Loansight](https://loan-payback-prediction-loansight.vercel.app/)**
+
 ## 📂 Dataset
 
 The dataset consists of:
